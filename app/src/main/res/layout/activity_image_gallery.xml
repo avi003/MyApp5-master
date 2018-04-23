@@ -1,0 +1,103 @@
+<LinearLayout android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#ffffff"
+    android:orientation="vertical"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@color/colorPrimary"
+        >
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            />
+
+        <ImageButton
+            android:id="@+id/button1"
+            android:layout_width="wrap_content"
+            android:background="?android:selectableItemBackground"
+            android:layout_height="wrap_content"
+            android:onClick="OnClick"
+            android:src="@drawable/cut" />
+
+        <ImageButton
+            android:id="@+id/buttonpaste"
+            android:layout_width="wrap_content"
+            android:background="?android:selectableItemBackground"
+            android:layout_height="wrap_content"
+            android:src="@drawable/paste" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            />
+
+
+        <ImageButton
+            android:id="@+id/button2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?android:selectableItemBackground"
+            android:src="@drawable/copy"
+            android:layout_marginLeft="10dp"/>
+
+
+        <ImageButton
+            android:id="@+id/button3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?android:selectableItemBackground"
+            android:src="@drawable/delete"
+            android:layout_marginLeft="23dp"/>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            />
+
+
+        <ImageButton
+            android:id="@+id/button4"
+            android:layout_width="wrap_content"
+            android:background="?android:selectableItemBackground"
+            android:layout_height="wrap_content"
+            android:src="@drawable/share"
+            android:layout_marginLeft="33dp"/>
+
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            />
+
+
+        <android.support.v7.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_gravity="end"
+            android:minHeight="?attr/actionBarSize"
+            android:background="?android:selectableItemBackground"
+            android:layout_width="match_parent"
+            android:layout_height="64dp">
+        </android.support.v7.widget.Toolbar>
+
+
+    </LinearLayout>
+
+       <GridView
+           android:id="@android:id/list"
+           android:layout_width="match_parent"
+           android:layout_height="match_parent"
+           android:numColumns="2"
+           android:layout_marginLeft="10dp"
+           android:layout_marginRight="10dp">
+       </GridView>
+
+</LinearLayout>
