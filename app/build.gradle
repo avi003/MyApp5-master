@@ -13,7 +13,11 @@ android {
     }
     sourceCompatibility = '1.7'
     targetCompatibility = '1.7'
+    lintOptions {
 
+        checkReleaseBuilds false
+
+    }
     buildTypes {
         release {
             minifyEnabled false

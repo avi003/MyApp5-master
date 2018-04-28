@@ -1,10 +1,15 @@
 package com.example.dell_1.myapp3.ImageViewer;
 
+import android.app.ProgressDialog;
+import android.content.ContentResolver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v7.app.AlertDialog;
@@ -27,6 +32,10 @@ import android.widget.Toast;
 import com.example.dell_1.myapp3.R;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -44,7 +53,7 @@ public class PhotosActivity extends AppCompatActivity {
     Cursor cursor;
     int column_index_data, column_index_folder_name;
 
-    private ArrayList<Integer> mSelected = new ArrayList<>();
+    public ArrayList<Integer> mSelected = new ArrayList<>();
     String absolutePathOfImage;
     boolean boolean_folder;
     MenuItem mSort,mSettings,mRename,mSelectAll, mProperties ;
@@ -68,7 +77,7 @@ public class PhotosActivity extends AppCompatActivity {
         gridView = (GridView) findViewById(android.R.id.list);
 
         int_position = getIntent().getIntExtra("value", 0);
-        adapter = new GridViewAdapter(this, al_images, int_position);
+        adapter = new GridViewAdapter(this, al_images, int_position,this);
         gridView.setChoiceMode(AbsListView.CHOICE_MODE_MULTIPLE);
         gridView.setAdapter(adapter);
 
@@ -83,27 +92,46 @@ public class PhotosActivity extends AppCompatActivity {
         gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                String abc = "file://" + al_images.get(int_position).getAl_imagepath().get(position);
+                if(!multiselectOn) {
+                    String abc = "file://" + al_images.get(int_position).getAl_imagepath().get(position);
 
-                Intent i = new Intent(getApplicationContext(), FullImageActivity.class);
-                i.putExtra("id", position);
-                i.putExtra("folderPosition", int_position);
-                i.putExtra("abc", abc);
-                startActivity(i);
+                    Intent i = new Intent(getApplicationContext(), FullImageActivity.class);
+                    i.putExtra("id", position);
+                    i.putExtra("folderPosition", int_position);
+                    i.putExtra("abc", abc);
+                    startActivity(i);
+                }else{
+                    if (mSelected.contains(position)) {
+                        Integer ob=position;
+                        mSelected.remove(ob);
+                        //view.setBackgroundColor(Color.TRANSPARENT);// remove item from list
+                        // update view (v) state here
+                        // eg: remove highlight
+                    } else {
+                        mSelected.add(position);
+                        // view.setBackgroundColor(Color.LTGRAY);// add item to list
+                        // update view (v) state here
+                        // eg: add highlight
+                    }
+
+                    adapter.notifyDataSetChanged();
+                }
             }
         });
 
         gridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(final AdapterView<?> parent, View view, final int position, long id) {
+                multiselectOn=true;
                 if (mSelected.contains(position)) {
-                    mSelected.remove(position);
-                    view.setBackgroundColor(Color.TRANSPARENT);// remove item from list
+                    Integer ob=position;
+                    mSelected.remove(ob);
+                    //view.setBackgroundColor(Color.TRANSPARENT);// remove item from list
                     // update view (v) state here
                     // eg: remove highlight
                 } else {
                     mSelected.add(position);
-                    view.setBackgroundColor(Color.LTGRAY);// add item to list
+                   // view.setBackgroundColor(Color.LTGRAY);// add item to list
                     // update view (v) state here
                     // eg: add highlight
                 }
@@ -151,10 +179,12 @@ public class PhotosActivity extends AppCompatActivity {
                                         new DialogInterface.OnClickListener() {
                                             public void onClick(DialogInterface dialog, int id) {
                                                 adapter.updateUpdater(mSelected);
-                                                for (int position = 0; position < mSelected.size(); position++) {
-                                                    al_images.get(int_position).getAl_imagepath().remove(position);
-                                                }
-                                                finish();
+//                                                for (int position = 0; position < mSelected.size(); position++) {
+//                                                    al_images.get(int_position).getAl_imagepath().remove(position);
+//                                                }
+                                                adapter.notifyDataSetChanged();
+                                                clearMultiSelect();
+                                                //finish();
                                             }
                                         });
 
@@ -178,7 +208,7 @@ public class PhotosActivity extends AppCompatActivity {
                             }
                         }
                 );
-
+               adapter.notifyDataSetChanged();
                 return true;
             }
 
@@ -202,16 +232,21 @@ public class PhotosActivity extends AppCompatActivity {
 
 
     public ArrayList<Model_images> fn_imagespath() {
-        al_menu.clear();
+        al_images.clear();
 
         int int_position = 0;
+        Uri uri;
+        Cursor cursor;
+        int column_index_data, column_index_folder_name;
 
+        String absolutePathOfImage;
         uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
 
         String[] projection = {MediaStore.MediaColumns.DATA, MediaStore.Images.Media.BUCKET_DISPLAY_NAME};
 
         final String orderBy = MediaStore.Images.Media.DATE_TAKEN;
-        cursor = getApplication().getContentResolver().query(uri, projection, null, null, orderBy + " DESC");
+        cursor = getApplicationContext().getContentResolver().query(uri, projection, null, null, orderBy + " DESC");
+
         column_index_data = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA);
         column_index_folder_name = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME);
         while (cursor.moveToNext()) {
@@ -219,8 +254,8 @@ public class PhotosActivity extends AppCompatActivity {
             Log.e("Column", absolutePathOfImage);
             Log.e("Folder", cursor.getString(column_index_folder_name));
 
-            for (int i = 0; i < al_menu.size(); i++) {
-                if (al_menu.get(i).getStr_folder().equals(cursor.getString(column_index_folder_name))) {
+            for (int i = 0; i < al_images.size(); i++) {
+                if (al_images.get(i).getStr_folder().equals(cursor.getString(column_index_folder_name))) {
                     boolean_folder = true;
                     int_position = i;
                     break;
@@ -230,34 +265,34 @@ public class PhotosActivity extends AppCompatActivity {
             }
 
 
-            if (boolean_folder) {
+            if (boolean_folder && al_images.size() > 0) {
 
                 ArrayList<String> al_path = new ArrayList<>();
-                al_path.addAll(al_menu.get(int_position).getAl_imagepath());
+                al_path.addAll(al_images.get(int_position).getAl_imagepath());
                 al_path.add(absolutePathOfImage);
-                al_menu.get(int_position).setAl_imagepath(al_path);
+                al_images.get(int_position).setAl_imagepath(al_path);
 
             } else {
                 ArrayList<String> al_path = new ArrayList<>();
                 al_path.add(absolutePathOfImage);
                 Model_images obj_model = new Model_images();
-                obj_model.setStr_folder(absolutePathOfImage);
+                obj_model.setStr_folder(cursor.getString(column_index_folder_name));
                 obj_model.setDirectoryPath(new File(absolutePathOfImage).getParent());
                 obj_model.setAl_imagepath(al_path);
 
-                al_menu.add(obj_model);
-            }
-        }
+                al_images.add(obj_model);
 
-        for (int i = 0; i < al_menu.size(); i++) {
-            Log.e("FOLDER", al_menu.get(i).getStr_folder());
-            for (int j = 0; j < al_menu.get(i).getAl_imagepath().size(); j++) {
-                Log.e("FILE", al_menu.get(i).getAl_imagepath().get(j));
             }
         }
-        adapter = new GridViewAdapter(this, al_menu, int_position);
-        gridView.setAdapter(adapter);
-        return al_menu;
+        for (int i = 0; i < al_images.size(); i++) {
+            Log.e("FOLDER", al_images.get(i).getStr_folder());
+            for (int j = 0; j < al_images.get(i).getAl_imagepath().size(); j++) {
+                Log.e("FILE", al_images.get(i).getAl_imagepath().get(j));
+            }
+        }
+        //obj_adapter = new Adapter_PhotosFolder(getApplicationContext(), al_images, int_position,this);
+        //gv_folder.setAdapter(obj_adapter);
+        return al_images;
     }
 
     private ArrayList<String> getImagePaths(ArrayList<Integer> selectedIndexList) {
@@ -302,20 +337,7 @@ public class PhotosActivity extends AppCompatActivity {
 
             case R.id.action_selectAll:
 
-                GridViewAdapter.Interface inter = new GridViewAdapter.Interface() {
-                    @Override
-                    public void convert(View convertView) {
-                        Toast.makeText(PhotosActivity.this, "WRITE_CONTACTS granted", Toast.LENGTH_SHORT)
-                                .show();
-                        File file2 = new File(al_images.get(int_position).getDirectoryPath());
-                        if (file2.isDirectory()) {
-                            String[] fileNames = file2.list();
-                            for (int a = 0; a < fileNames.length; a++) {
-                                convertView.setBackgroundColor(Color.LTGRAY);
-                            }
-                        }
-                    }
-                };
+                selectAll();
                 // location found
                 return true;
 
@@ -394,6 +416,7 @@ public class PhotosActivity extends AppCompatActivity {
         AlertDialog.Builder builder2 = new AlertDialog.Builder(PhotosActivity.this);
         builder2.setMessage("Rename File");
         final EditText input = new EditText(PhotosActivity.this);
+        input.setHint("Enter new name");
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.MATCH_PARENT);
@@ -403,17 +426,29 @@ public class PhotosActivity extends AppCompatActivity {
                 "Rename",
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
+                        if(mSelected.size()==1)
                         for (int selected : mSelected) {
-                            File oldName = new File(al_images.get(int_position).getAl_imagepath().get(selected));
                             String string = input.getText().toString();
-                            File newFile = new File(string);
+                            File oldName = new File(al_images.get(int_position).getAl_imagepath().get(selected));
+
+                            String OldFilename=oldName.getName();
+                            String ext=OldFilename.substring(OldFilename.lastIndexOf("."));
+
+                            String OldFileDir=oldName.getAbsolutePath().replace(OldFilename,string)+ext;
+
+
+                            File newFile = new File(OldFileDir);
                             if (!newFile.exists()) {
                                 boolean success = oldName.renameTo(newFile);
-                                if (!success) {
-                                    Log.v(TAG, "not renamed");
+                                if (success) {
+                                   // Log.v(TAG, "not renamed");
+                                    makeToast("File Renamed");
+                                    renameImageFile(PhotosActivity.this,oldName,newFile);
+
+                                    new Reload().execute();
                                 }
                             } else {
-                                Log.e(TAG, "file is already exist");
+                               // Log.e(TAG, "file is already exist");
                             }
                         }
                     }
@@ -431,7 +466,133 @@ public class PhotosActivity extends AppCompatActivity {
         AlertDialog alert12 = builder2.create();
         alert12.show();
     }
+    public void  renameImageFile(Context c, File from, File to) {
+        removeMedia(c, from);
+        addMedia(c, to);
+
+    }
+
+    public static void addMedia(Context c, File f) {
+        Intent intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        intent.setData(Uri.fromFile(f));
+        c.sendBroadcast(intent);
+    }
+
+    private static void removeMedia(Context c, File f) {
+        ContentResolver resolver = c.getContentResolver();
+        resolver.delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, MediaStore.Images.Media.DATA + "=?", new String[] { f.getAbsolutePath() });
+    }
+
+    ////////// making long press work ////////////
+
+    boolean multiselectOn=false;
+    public void clearMultiSelect(){
+        mSelected.clear();
+        multiselectOn=false;
+        hideMenuItem();
+        if(adapter!=null)
+            adapter.notifyDataSetChanged();
+    }
+
+    public void selectAll(){
+    int size=al_images.get(int_position).getAl_imagepath().size();
+    multiselectOn=true;
+    mSelected.clear();
+    for(int i=0; i<size;i++){
+        mSelected.add(i);
+    }
+    if(adapter!=null)
+        adapter.notifyDataSetChanged();
+    }
 
 
+    @Override
+    public void onBackPressed() {
+
+        if(!mSelected.isEmpty()){
+            clearMultiSelect();
+        }else{
+            super.onBackPressed();
+        }
+    }
+
+
+
+    //move files
+    private void moveFile(File file_Source, File file_Destination, boolean isCopy) throws IOException {
+        FileChannel source = null;
+        FileChannel destination = null;
+        if (!file_Destination.exists()) {
+            file_Destination.createNewFile();
+        }
+
+        try {
+            source = new FileInputStream(file_Source).getChannel();
+            destination = new FileOutputStream(file_Destination).getChannel();
+
+            long count = 0;
+            long size = source.size();
+            while ((count += destination.transferFrom(source, count, size - count)) < size) ;
+            if (!isCopy) {
+                file_Source.delete();
+                MediaScannerConnection.scanFile(this,
+                        new String[]{file_Source.toString()}, null,
+                        new MediaScannerConnection.OnScanCompletedListener() {
+                            public void onScanCompleted(String path, Uri uri) {
+                                Log.i("ExternalStorage", "Scanned " + path + ":");
+                                Log.i("ExternalStorage", "-> uri=" + uri);
+                            }
+                        });
+            }
+
+        } finally {
+            if (source != null) {
+                source.close();
+            }
+            if (destination != null) {
+                destination.close();
+            }
+        }
+    }
+
+    public class Reload extends AsyncTask<String, Void, File> {
+        ProgressDialog pd;
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            pd=new ProgressDialog(PhotosActivity.this);
+            pd.setMessage("Please Wait...");
+            pd.setCancelable(true);
+            pd.show();
+        }
+
+        @Override
+        protected File doInBackground(String... strings) {
+            //content provider takes time to update
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            fn_imagespath();
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(File file) {
+            super.onPostExecute(file);
+            pd.dismiss();
+            //obj_adapter = new Adapter_PhotosFolder(getApplicationContext(), al_images, int_position,ImageGallery.this);
+            //gv_folder.setAdapter(obj_adapter);
+            adapter = new GridViewAdapter(PhotosActivity.this, al_images, int_position,PhotosActivity.this);
+            gridView.setAdapter(adapter);
+            clearMultiSelect();
+        }
+    }
+
+
+    void makeToast(String str){
+        Toast.makeText(this, str,Toast.LENGTH_LONG).show();
+    }
 
 }

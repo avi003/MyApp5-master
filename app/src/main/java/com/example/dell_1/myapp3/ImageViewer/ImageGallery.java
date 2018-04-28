@@ -1,8 +1,10 @@
 package com.example.dell_1.myapp3.ImageViewer;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -45,14 +47,23 @@ public class ImageGallery extends AppCompatActivity {
     MenuItem mSort, mSettings, mRename, mSelectAll, mProperties;
     private static final int REQUEST_PERMISSIONS = 100;
     int int_position;
-
+    String MY_PREFS_NAME="MMR";
+    ArrayList<Integer> mSelected=new ArrayList<>();
+    SharedPreferences sp;
+    SharedPreferences.Editor editor;
+    int mode=-1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_image_gallery);
         gv_folder = (GridView) findViewById(android.R.id.list);
-        obj_adapter = new Adapter_PhotosFolder(this, al_images, int_position);
+        obj_adapter = new Adapter_PhotosFolder(this, al_images, int_position,this);
         gv_folder.setAdapter(obj_adapter);
+
+
+
+         sp = getSharedPreferences(MY_PREFS_NAME, MODE_PRIVATE);
+
 
         Toolbar topToolBar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(topToolBar);
@@ -65,7 +76,7 @@ public class ImageGallery extends AppCompatActivity {
         buttonpaste.setVisibility(View.GONE);
         if (getIntent().getSerializableExtra("selected_images") != null)
             selectedImages = (ArrayList<String>) getIntent().getSerializableExtra("selected_images");
-        Log.v(TAG, "The size of arraylist " + selectedImages.size());
+        //Log.v(TAG, "The size of arraylist " + selectedImages.size());
 
         final ImageButton buttoncut = (ImageButton) findViewById(R.id.button1);
         final ImageButton button2 = (ImageButton) findViewById(R.id.button2);
@@ -92,6 +103,8 @@ public class ImageGallery extends AppCompatActivity {
         {
             @Override
             public boolean onItemLongClick(AdapterView<?> adapterView, View view, final int i, long l) {
+
+
                 for (int j = 0; j < adapterView.getChildCount(); j++)
                     adapterView.getChildAt(j).setBackgroundColor(Color.TRANSPARENT);
 
@@ -181,10 +194,18 @@ public class ImageGallery extends AppCompatActivity {
 
         {
             Log.e("Else", "Else");
-            fn_imagespath();
+            //fn_imagespath();
+            new Reload().execute();
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mode= sp.getInt("grant", -1);
+        if(mode!=-1 && mode==1)
+        new Reload().execute();
+    }
 
     public ArrayList<Model_images> fn_imagespath() {
         al_images.clear();
@@ -245,10 +266,12 @@ public class ImageGallery extends AppCompatActivity {
                 Log.e("FILE", al_images.get(i).getAl_imagepath().get(j));
             }
         }
-        obj_adapter = new Adapter_PhotosFolder(getApplicationContext(), al_images, int_position);
-        gv_folder.setAdapter(obj_adapter);
+        //obj_adapter = new Adapter_PhotosFolder(getApplicationContext(), al_images, int_position,this);
+        //gv_folder.setAdapter(obj_adapter);
         return al_images;
     }
+
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
@@ -258,7 +281,11 @@ public class ImageGallery extends AppCompatActivity {
             case REQUEST_PERMISSIONS: {
                 for (int i = 0; i < grantResults.length; i++) {
                     if (grantResults.length > 0 && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
-                        fn_imagespath();
+                        //fn_imagespath();
+                        editor = getSharedPreferences(MY_PREFS_NAME, MODE_PRIVATE).edit();
+                        editor.putInt("grant", 1);
+                        editor.apply();
+                        new Reload().execute();
                     } else {
                         Toast.makeText(ImageGallery.this, "The app was not allowed to read or write to your storage. Hence, it cannot function properly. Please consider granting it this permission", Toast.LENGTH_LONG).show();
                     }
@@ -271,7 +298,7 @@ public class ImageGallery extends AppCompatActivity {
 
         int id, count = 0;
         File destinationImage;
-        private static final String TAG = " com.example.dell_1.myapp3.ImageViewer";
+       // private static final String TAG = " com.example.dell_1.myapp3.ImageViewer";
 
         public LongOperation(int id) {
             this.id = id;
@@ -286,7 +313,7 @@ public class ImageGallery extends AppCompatActivity {
                 // be// moved.
 
                 count++;
-                Log.v(TAG, "The size " + count);
+                //Log.v(TAG, "The size " + count);
                 destinationImage = new File(al_images.get(id).getDirectoryPath() +
                         File.separator + sourceImage.getName());
 
@@ -311,7 +338,8 @@ public class ImageGallery extends AppCompatActivity {
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    fn_imagespath();
+                    //fn_imagespath();
+                    new Reload().execute();
                 }
             }, 1000); // additional delay time of 1 sec to update media scanner
         }
@@ -416,4 +444,38 @@ public class ImageGallery extends AppCompatActivity {
         mSelectAll.setVisible(true);
         mProperties.setVisible(true);
     }
+
+
+
+    void makeToast(String str){
+        Toast.makeText(this, str,Toast.LENGTH_LONG).show();
+    }
+
+
+    public class Reload extends AsyncTask<String, Void, File>{
+    ProgressDialog pd;
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            pd=new ProgressDialog(ImageGallery.this);
+            pd.setMessage("Please Wait...");
+            pd.setCancelable(true);
+            pd.show();
+        }
+
+        @Override
+        protected File doInBackground(String... strings) {
+            fn_imagespath();
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(File file) {
+            super.onPostExecute(file);
+            pd.dismiss();
+            obj_adapter = new Adapter_PhotosFolder(getApplicationContext(), al_images, int_position,ImageGallery.this);
+            gv_folder.setAdapter(obj_adapter);
+        }
+    }
+
 }
